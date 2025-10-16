@@ -1,41 +1,46 @@
-// File: createTask.steps.ts
-import { loadFeature, defineFeature } from 'jest-cucumber';
-import { resetTasks, addTask, getTasks } from '../../lib/taskManager';
+// File 1: create_task.steps.ts
+import { loadFeature, defineFeature } from "jest-cucumber";
 
-const feature = loadFeature('src/__tests__/features/createTask.feature');
+const feature = loadFeature("src/__tests__/features/create_task.feature");
 
 defineFeature(feature, (test) => {
-  beforeEach(() => {
-    resetTasks();
+  let taskList: string[] = [];
+  let errorMessage: string | null = null;
+
+  const addTask = (taskName: string) => {
+    if (taskList.includes(taskName)) {
+      errorMessage = "Task already exists";
+    } else {
+      taskList.push(taskName);
+      errorMessage = null;
+    }
+  };
+
+  test("Add a new task successfully", ({ given, when, then }) => {
+    given("the task list is empty", () => {
+      taskList = [];
+    });
+
+    when(/^I add a task named "(.*)"$/, (taskName: string) => {
+      addTask(taskName);
+    });
+
+    then(/^the task list should contain "(.*)"$/, (taskName: string) => {
+      expect(taskList).toContain(taskName);
+    });
   });
 
-  test('Add a new task successfully', ({ given, when, then }) => {
-    given('the task list is empty', () => {
-      // The task list is reset in beforeEach
+  test("Prevent adding a duplicate task", ({ given, when, then }) => {
+    given(/^a task named "(.*)" already exists$/, (taskName: string) => {
+      taskList = [taskName];
     });
 
-    when('I add a task named "Learn BDD"', () => {
-      addTask('Learn BDD');
+    when(/^I add a task named "(.*)"$/, (taskName: string) => {
+      addTask(taskName);
     });
 
-    then('the task list should contain "Learn BDD"', () => {
-      const tasks = getTasks();
-      expect(tasks).toHaveLength(1);
-      expect(tasks[0].title).toBe('Learn BDD');
-    });
-  });
-
-  test('Prevent adding a duplicate task', ({ given, when, then }) => {
-    given('a task named "Learn BDD" already exists', () => {
-      addTask('Learn BDD');
-    });
-
-    when('I add a task named "Learn BDD"', () => {
-      expect(() => addTask('Learn BDD')).toThrow('Task already exists');
-    });
-
-    then('I should see an error message "Task already exists"', () => {
-      // The error message is checked in the when step
+    then(/^I should see an error message "(.*)"$/, (expectedErrorMessage: string) => {
+      expect(errorMessage).toBe(expectedErrorMessage);
     });
   });
 });

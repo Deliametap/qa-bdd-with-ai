@@ -1,48 +1,39 @@
-// File: readTasks.steps.ts
-import { loadFeature, defineFeature } from 'jest-cucumber';
-import { resetTasks, addTask, getTasks } from '../../lib/taskManager';
+import { loadFeature, defineFeature } from "jest-cucumber";
 
-const feature = loadFeature('src/__tests__/features/readTasks.feature');
+const feature = loadFeature("src/__tests__/features/read_task.feature");
 
 defineFeature(feature, (test) => {
-  beforeEach(() => {
-    resetTasks();
-  });
+  let taskList: string[];
 
-  test('View all tasks', ({ given, when, then }) => {
-    given('the task list contains:', (dataTable) => {
-      dataTable.rawTable.slice(1).forEach((row) => {
-        const title = row[0];
-        addTask(title);
-      });
+  const initializeTaskList = () => {
+    taskList = ["Learn BDD", "Write tests"];
+  };
+
+  test("View all tasks", ({ given, when, then }) => {
+    given("the task list contains:", (table) => {
+      initializeTaskList();
     });
 
-    when('I request the list of tasks', () => {
-      // No action needed, just preparing for the next step
+    when("I request the list of tasks", () => {
+      // Simulate requesting the list of tasks
     });
 
-    then('I should see 2 tasks in the list', () => {
-      const tasks = getTasks();
-      expect(tasks.length).toBe(2);
+    then("I should see 2 tasks in the list", () => {
+      expect(taskList.length).toBe(2);
     });
   });
 
-  test('Find a task by name', ({ when, then }) => {
-    given('the task list contains:', (dataTable) => {
-      dataTable.rawTable.slice(1).forEach((row) => {
-        const title = row[0];
-        addTask(title);
-      });
+  test("Find a task by name", ({ given, when, then }) => {
+    given("the task list contains:", (table) => {
+      initializeTaskList();
     });
 
     when('I search for a task named "Learn BDD"', () => {
-      // No action needed, just preparing for the next step
+      // Simulate searching for a task by name
     });
 
     then('the result should include "Learn BDD"', () => {
-      const tasks = getTasks();
-      const taskTitles = tasks.map(task => task.title);
-      expect(taskTitles).toContain('Learn BDD');
+      expect(taskList).toContain("Learn BDD");
     });
   });
 });

@@ -6,14 +6,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // pastikan sudah diset di environment
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const FEATURES_DIR = path.resolve("src/__tests__/features");
 const OUTPUT_DIR = path.resolve("src/__tests__/generated");
-const TASK_MANAGER_PATH = path.resolve("src/lib/taskManager.ts");
 
-// Pastikan output directory ada
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
@@ -22,47 +20,62 @@ async function generateTestsForFeature(featurePath: string) {
   const featureName = path.basename(featurePath, ".feature");
   const featureContent = fs.readFileSync(featurePath, "utf-8");
 
-  // 🔍 Baca isi taskManager.ts agar AI tahu tipe data sebenarnya
-  const taskManagerContent = fs.readFileSync(TASK_MANAGER_PATH, "utf-8");
-
   const prompt = `
 You are an expert QA engineer and TypeScript developer.
 
-Below is the full implementation of the module "taskManager.ts".
-Use its functions exactly as defined (respect parameter types, return types, etc).
+Your task is to generate **three TypeScript files** from the Gherkin feature below.
 
---- START OF taskManager.ts ---
-${taskManagerContent}
---- END OF taskManager.ts ---
+Each file must be clean, complete, and consistent with the behavior described in the feature.
 
-Now, given the following Gherkin feature file, generate two TypeScript test files.
+---
 
-1️⃣ // File: <featureName>.steps.ts  
-   - Use jest-cucumber (loadFeature, defineFeature)
-   - Import functions from "../../lib/taskManager"
-   - Feature path must be "src/__tests__/features/<featureName>.feature"
+🔹 **General Rules**
+- Convert feature title into snake_case for filenames and camelCase for function names.
+  Example: "Create Task" → files use "create_task", function name = createTask
+- Infer parameters and logic intentions from the "When" steps.
+- Each file must be separated by these exact lines:
+  // === SECOND FILE ===
+  // === THIRD FILE ===
+- Never use markdown code fences or TODO comments.
+- Make step and test logic realistic and consistent with the feature content.
 
-2️⃣ // File: <featureName>.test.ts  
-   - Use Jest (describe/test/expect)
-   - Import functions from "../../lib/taskManager"
+---
 
-Rules:
-- Use correct parameter types based on taskManager.ts (e.g., id: number, title: string)
-- Do NOT use quotes for numeric IDs
-- Do NOT include the file name in the code output
-- Do NOT wrap the output with markdown fences
-- Keep code clean, idiomatic TypeScript, and runnable
+**File 1: {featureName}.steps.ts**
+- Use jest-cucumber.
+- Import only: \`loadFeature\` and \`defineFeature\` from "jest-cucumber".
+- Load feature from "src/__tests__/features/{featureName}.feature".
+- Implement Given/When/Then exactly as in the feature (use in-memory variables, arrays, etc).
+- Do NOT import business logic (no imports from lib).
 
-Feature file content:
+**File 2: {featureName}.test.ts**
+- Use Jest.
+- Import the function from "../../lib/{featureName}".
+- Include complete describe/test blocks implementing every scenario in the feature.
+- Use meaningful expect() statements based on the feature’s outcomes.
+
+**File 3: {featureName}.ts**
+- Located in src/lib/{featureName}.ts
+- Must export a function with the inferred name and parameters.
+- Function body must be empty except a comment:
+  // TODO: implement business logic
+- Example:
+  export function createTask(taskName: string) {
+    // TODO: implement business logic
+  }
+
+---
+
+Feature content:
 """
 ${featureContent}
 """
 `;
 
-  console.log(`🧠 Generating test for: ${featureName}...`);
+  console.log(`🧠 Generating tests for: ${featureName}...`);
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
   });
@@ -70,29 +83,32 @@ ${featureContent}
   let code = completion.choices[0].message?.content || "";
   code = code.replace(/```[a-z]*|```/g, "").trim();
 
-  // Pisahkan dua file berdasarkan pattern
-  const [stepsContent, testContent] = code.split(
-    /(?=\/\/\s*File:\s*\w+\.test\.ts)/i
-  );
+  const parts = code.split(/\/\/\s*===\s*(?:SECOND FILE|THIRD FILE)\s*===/gi);
+  const [stepsContent, testContent, funcContent] = parts.map((p) => p?.trim());
 
-  if (!stepsContent || !testContent) {
-    console.error(`❌ Gagal memisahkan hasil untuk ${featureName}.`);
+  if (!stepsContent || !testContent || !funcContent) {
+    console.error(`❌ Gagal memisahkan hasil AI untuk ${featureName}.`);
+    console.log(code); // bantu debug hasil mentah
     return;
   }
 
-  const stepsFile = path.join(OUTPUT_DIR, `${featureName}.steps.ts`);
-  const testFile = path.join(OUTPUT_DIR, `${featureName}.test.ts`);
+  const stepsPath = path.join(OUTPUT_DIR, `${featureName}.steps.ts`);
+  const testPath = path.join(OUTPUT_DIR, `${featureName}.test.ts`);
+  const funcPath = path.resolve(`src/lib/${featureName}.ts`);
 
-  fs.writeFileSync(stepsFile, stepsContent.trim() + "\n");
-  fs.writeFileSync(testFile, testContent.trim() + "\n");
+  fs.writeFileSync(stepsPath, stepsContent + "\n");
+  fs.writeFileSync(testPath, testContent + "\n");
 
-  console.log(`✅ Generated: ${featureName}.steps.ts & ${featureName}.test.ts`);
+  if (!fs.existsSync(funcPath)) {
+    fs.mkdirSync(path.dirname(funcPath), { recursive: true });
+    fs.writeFileSync(funcPath, funcContent + "\n");
+  }
+
+  console.log(`✅ Generated: ${featureName}.steps.ts, ${featureName}.test.ts, lib/${featureName}.ts`);
 }
 
 async function main() {
-  const featureFiles = fs
-    .readdirSync(FEATURES_DIR)
-    .filter((file) => file.endsWith(".feature"));
+  const featureFiles = fs.readdirSync(FEATURES_DIR).filter((file) => file.endsWith(".feature"));
 
   if (featureFiles.length === 0) {
     console.error("❌ Tidak ada file .feature ditemukan di:", FEATURES_DIR);

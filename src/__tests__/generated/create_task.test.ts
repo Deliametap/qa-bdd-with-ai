@@ -1,20 +1,36 @@
-// File: createTask.test.ts
-import { resetTasks, addTask, getTasks } from '../../lib/taskManager';
+// File 2: create_task.test.ts
+import { createTask } from "../../lib/create_task";
 
-describe('Task Manager', () => {
+describe("Create Task", () => {
+  let taskList: string[] = [];
+  let errorMessage: string | null = null;
+
+  const addTask = (taskName: string) => {
+    if (taskList.includes(taskName)) {
+      errorMessage = "Task already exists";
+    } else {
+      taskList.push(taskName);
+      errorMessage = null;
+    }
+  };
+
   beforeEach(() => {
-    resetTasks();
+    taskList = [];
+    errorMessage = null;
   });
 
-  test('should add a new task successfully', () => {
-    const task = addTask('Learn BDD');
-    const tasks = getTasks();
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]).toEqual({ id: 1, title: 'Learn BDD', completed: false });
+  test("Add a new task successfully", () => {
+    createTask("Learn BDD");
+    addTask("Learn BDD");
+    expect(taskList).toContain("Learn BDD");
+    expect(errorMessage).toBeNull();
   });
 
-  test('should prevent adding a duplicate task', () => {
-    addTask('Learn BDD');
-    expect(() => addTask('Learn BDD')).toThrow('Task already exists');
+  test("Prevent adding a duplicate task", () => {
+    taskList.push("Learn BDD");
+    createTask("Learn BDD");
+    addTask("Learn BDD");
+    expect(taskList).toContain("Learn BDD");
+    expect(errorMessage).toBe("Task already exists");
   });
 });

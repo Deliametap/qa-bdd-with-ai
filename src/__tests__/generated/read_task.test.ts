@@ -1,25 +1,13 @@
-// File: readTasks.test.ts
-import { resetTasks, addTask, getTasks } from '../../lib/taskManager';
+import { readTasks } from "../../lib/read_task";
 
-describe('Read Tasks', () => {
-  beforeEach(() => {
-    resetTasks();
-  });
-
-  test('should return all tasks', () => {
-    addTask('Learn BDD');
-    addTask('Write tests');
-
-    const tasks = getTasks();
+describe("Read Tasks", () => {
+  test("View all tasks", () => {
+    const tasks = readTasks();
     expect(tasks.length).toBe(2);
   });
 
-  test('should find a task by name', () => {
-    addTask('Learn BDD');
-    addTask('Write tests');
-
-    const tasks = getTasks();
-    const taskTitles = tasks.map(task => task.title);
-    expect(taskTitles).toContain('Learn BDD');
+  test("Find a task by name", () => {
+    const tasks = readTasks();
+    expect(tasks).toContain("Learn BDD");
   });
 });

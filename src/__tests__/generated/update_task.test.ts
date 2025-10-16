@@ -1,19 +1,20 @@
-// File: updateTask.test.ts  
-import { resetTasks, addTask, updateTask, getTasks } from '../../lib/taskManager';
+// File 2: update_task.test.ts
+import { updateTask } from "../../lib/update_task";
 
-describe('Update Task', () => {
+describe("Update Task", () => {
+  let taskList: { title: string }[];
+
   beforeEach(() => {
-    resetTasks();
+    taskList = [{ title: "Learn BDD" }];
   });
 
-  test('should update task name successfully', () => {
-    addTask("Learn BDD");
-    updateTask(1, { title: "Learn Jest-Cucumber" });
-    const tasks = getTasks();
-    expect(tasks).toEqual(expect.arrayContaining([{ id: 1, title: "Learn Jest-Cucumber", completed: false }]));
+  test("Update task name successfully", () => {
+    updateTask(taskList, "Learn BDD", "Learn Jest-Cucumber");
+    expect(taskList).toEqual([{ title: "Learn Jest-Cucumber" }]);
   });
 
-  test('should throw error when updating non-existing task', () => {
-    expect(() => updateTask(999, { title: "Updated" })).toThrow("Task not found");
+  test("Update non-existing task", () => {
+    const result = updateTask(taskList, "Nonexistent", "Updated");
+    expect(result).toBe("Task not found");
   });
 });
